@@ -1,0 +1,110 @@
+import pandas as pd
+
+# ---------------- TOKEN SETS ----------------
+BABY_TOKENS = {
+    "baby cry",
+    "infant cry",
+    "babbling",
+    "child speech",
+    "kid speaking"
+}
+
+CAT_TOKENS = {
+    "cat",
+    "purr",
+    "meow",
+    "hiss",
+    "cat communication",
+    "caterwaul"
+}
+
+baby_csv = "baby_cry_predictions.csv"
+cat_csv = "cat_meow_predictions.csv"
+
+TOP_K = 5
+# -------------------------------------------
+
+
+def tokenize(label):
+    """
+    Split comma-separated labels, lowercase, strip whitespace
+    """
+    return [t.strip().lower() for t in label.split(",")]
+
+
+def predict_group(group):
+    baby_rank = None
+    cat_rank = None
+
+    for _, row in group.iterrows():
+        rank = int(row["rank"])
+        tokens = tokenize(row["class_name"])
+
+        if any(t in BABY_TOKENS for t in tokens):
+            baby_rank = rank if baby_rank is None else min(baby_rank, rank)
+
+        if any(t in CAT_TOKENS for t in tokens):
+            cat_rank = rank if cat_rank is None else min(cat_rank, rank)
+
+    if baby_rank is not None and cat_rank is not None:
+        return "BABY" if baby_rank < cat_rank else "CAT"
+    elif baby_rank is not None:
+        return "BABY"
+    elif cat_rank is not None:
+        return "CAT"
+    else:
+        return "NONE"
+
+
+def evaluate(csv_path, ground_truth):
+    df = pd.read_csv(csv_path)
+    results = []
+
+    # Assumes fixed TOP_K predictions per audio
+    for _, group in df.groupby(df.index // TOP_K):
+        pred = predict_group(group)
+        results.append((ground_truth, pred))
+
+    return results
+
+
+# ---------------- RUN EVALUATION ----------------
+baby_results = evaluate(baby_csv, "BABY")
+cat_results = evaluate(cat_csv, "CAT")
+
+all_results = baby_results + cat_results
+
+# ---------------- CONFUSION MATRIX ----------------
+TP = FP = TN = FN = 0
+
+for gt, pred in all_results:
+    if gt == "BABY":
+        if pred == "BABY":
+            TP += 1
+        else:
+            FN += 1
+    elif gt == "CAT":
+        if pred == "BABY":
+            FP += 1
+        else:
+            TN += 1
+
+confusion_matrix = pd.DataFrame(
+    [[TP, FN],
+     [FP, TN]],
+    index=["GT: BABY", "GT: CAT"],
+    columns=["Pred: BABY", "Pred: CAT"]
+)
+
+print("\nConfusion Matrix:")
+print(confusion_matrix)
+
+# ---------------- METRICS ----------------
+recall = TP / (TP + FN) if (TP + FN) else 0
+precision = TP / (TP + FP) if (TP + FP) else 0
+specificity = TN / (TN + FP) if (TN + FP) else 0
+
+print("\nMetrics:")
+print(f"Recall (BABY): {recall:.3f}")
+print(f"Precision (BABY): {precision:.3f}")
+print(f"Specificity (CAT): {specificity:.3f}")
