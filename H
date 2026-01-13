@@ -1,0 +1,82 @@
+import re
+from collections import defaultdict
+
+LOG_FILE = "baby_131.txt"
+
+# ---------- Label Lists ----------
+babylist = [
+    "Baby cry, infant cry",
+    "Babbling",
+    "Child speech, kid speaking"
+]
+
+catlist = [
+    "Cat",
+    "Purr",
+    "Meow",
+    "Hiss",
+    "Cat communication",
+    "Caterwaul"
+]
+
+# ---------- Regex ----------
+rank_re = re.compile(r'"(.+?):\s*([\d.]+),\s*rank:\s*(\d+)"', re.I)
+
+def is_baby(label):
+    return any(b.lower() in label.lower() for b in babylist)
+
+def is_cat(label):
+    return any(c.lower() in label.lower() for c in catlist)
+
+# ---------- Load File ----------
+with open(LOG_FILE, "r", errors="ignore") as f:
+    content = f.read()
+
+# ---------- Split by Event ----------
+events = content.split("sh: 123: command not found")
+
+stats = defaultdict(int)
+
+# ---------- Process Each Event ----------
+for event in events:
+
+    # ===== SED (clubbed) =====
+    if '"events detected": ["baby-cry"]' in event.lower():
+        stats["SED_BABY"] += 1
+
+    # ===== SRCN (clubbed) =====
+    best_rank_per_label = {}
+
+    for label, score, rank in rank_re.findall(event):
+        rank = int(rank)
+        if label not in best_rank_per_label or rank < best_rank_per_label[label]:
+            best_rank_per_label[label] = rank
+
+    # Keep only top-5
+    top5 = {l: r for l, r in best_rank_per_label.items() if r <= 4}
+
+    baby_ranks = [r for l, r in top5.items() if is_baby(l)]
+    cat_ranks  = [r for l, r in top5.items() if is_cat(l)]
+
+    # ----- SRCN Decision -----
+    if not baby_ranks:
+        stats["FN"] += 1
+    elif baby_ranks and cat_ranks:
+        if min(baby_ranks) < min(cat_ranks):
+            stats["TP"] += 1
+        else:
+            stats["FP"] += 1
+    elif baby_ranks and not cat_ranks:
+        stats["TP"] += 1
+    else:
+        stats["TN"] += 1
+
+# ---------- Results ----------
+print("\n========== FINAL RESULTS ==========")
+print(f"Total Events          : {len(events)}")
+print(f"SED Baby Events       : {stats['SED_BABY']}")
+print(f"SRCN TP               : {stats['TP']}")
+print(f"SRCN FP               : {stats['FP']}")
+print(f"SRCN FN               : {stats['FN']}")
+print(f"SRCN TN               : {stats['TN']}")
+
