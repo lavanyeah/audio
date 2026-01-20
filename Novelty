@@ -1,0 +1,40 @@
+REAL Novelty Point #1 (this is the strongest one)
+Using text-derived acoustic parameters specifically to drive RIR generation
+This is subtle but crucial.
+Most systems do:
+Text → audio
+Or text → style → audio
+Very few systems do:
+Text → explicit acoustic parameters
+→ RIR
+→ audio
+The use of RIR as the intermediate target is the novelty.
+🔑 Key distinction:
+You are not extracting parameters “for fun” — you are extracting them to synthesize an acoustic operator.
+That coupling is rare and defensible.
+REAL Novelty Point #2
+Explicit separation between linguistic uncertainty and acoustic uncertainty
+Most systems:
+Collapse ambiguity into a single output
+You can claim novelty if you:
+Treat text as ambiguous by design
+Output ranges / distributions of parameters
+Propagate uncertainty into RIR generation
+Example:
+“cozy” → RT60 ∈ [0.35, 0.55]
+“large hall” → RT60 ∈ [1.8, 2.6]
+This is not common in audio pipelines.
+This is not sexy — but it is technically meaningful.
+REAL Novelty Point #3
+Disentangling “environment acoustics” from “sound content” at the language level
+Most prompt systems mix:
+“play a piano”
+“in a cathedral”
+…inside one opaque model.
+If your system:
+Parses language into two orthogonal channels:
+Source semantics
+Environment acoustics
+And enforces this separation architecturally
+That is a real architectural novelty.
+It’s not about new AI — it’s about system design discipline.
